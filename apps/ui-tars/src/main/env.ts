@@ -21,6 +21,7 @@ export const vlmProvider = process.env.VLM_PROVIDER;
 export const vlmBaseUrl = process.env.VLM_BASE_URL;
 export const vlmApiKey = process.env.VLM_API_KEY;
 export const vlmModelName = process.env.VLM_MODEL_NAME;
+export const vlmUseResponsesApi = process.env.VLM_USE_RESPONSES_API === 'true';
 
 const { platform } = process;
 export const isMacOS = platform === 'darwin';
