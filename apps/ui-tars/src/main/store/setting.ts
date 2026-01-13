@@ -24,6 +24,8 @@ export const DEFAULT_SETTING: LocalStore = {
   vlmApiKey: env.vlmApiKey || '',
   vlmModelName: env.vlmModelName || '',
   useResponsesApi: env.vlmUseResponsesApi ?? false,
+  vlmEnableThinking: env.vlmEnableThinking ?? false,
+  vlmMaxImageLength: env.vlmMaxImageLength ?? 5,
   maxLoopCount: 100,
   loopIntervalInMs: 1000,
   searchEngineForBrowser: SearchEngineForSettings.GOOGLE,

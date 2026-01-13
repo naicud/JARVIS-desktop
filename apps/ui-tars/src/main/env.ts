@@ -22,6 +22,10 @@ export const vlmBaseUrl = process.env.VLM_BASE_URL;
 export const vlmApiKey = process.env.VLM_API_KEY;
 export const vlmModelName = process.env.VLM_MODEL_NAME;
 export const vlmUseResponsesApi = process.env.VLM_USE_RESPONSES_API === 'true';
+export const vlmEnableThinking = process.env.VLM_ENABLE_THINKING === 'true';
+export const vlmMaxImageLength = process.env.VLM_MAX_IMAGE_LENGTH
+  ? parseInt(process.env.VLM_MAX_IMAGE_LENGTH, 10)
+  : undefined;
 
 const { platform } = process;
 export const isMacOS = platform === 'darwin';
