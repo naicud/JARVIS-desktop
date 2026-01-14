@@ -20,7 +20,7 @@ import { Button } from '@renderer/components/ui/button';
 // import { useScreenRecord } from '@renderer/hooks/useScreenRecord';
 import { api } from '@renderer/api';
 
-import { Play, Send, Square, Loader2 } from 'lucide-react';
+import { Play, Send, Square, Loader2, CircleArrowUp } from 'lucide-react';
 import { Textarea } from '@renderer/components/ui/textarea';
 import { useSession } from '@renderer/hooks/useSession';
 
@@ -43,13 +43,16 @@ const ChatInput = ({
     instructions: savedInstructions,
     messages,
     restUserData,
+    pendingMessages = [],
   } = useStore();
   const [localInstructions, setLocalInstructions] = useState('');
   const { run, stopAgentRuning } = useRunAgent();
   const { getSession, updateSession, chatMessages } = useSession();
   const { settings, updateSetting } = useSetting();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // StatusEnum.CALL_USER is also a running state in UI perspective until user input
   const running = status === StatusEnum.RUNNING;
+  const isCallUser = useMemo(() => status === StatusEnum.CALL_USER, [status]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -96,6 +99,27 @@ const ChatInput = ({
   // console.log('running', 'status', status, running);
 
   const startRun = async () => {
+    const instructions = getInstantInstructions();
+    if (!instructions) {
+      return;
+    }
+
+    if (running || isCallUser) {
+      // If we are already running or waiting for user, and user types something new
+      // We should queue it or use it as response to call_user if appropriate.
+      // However, for CALL_USER, the logic below handles it if it matches savedInstructions?
+      // Actually, if we are in CALL_USER state, we might want to just send it as a response.
+      // But typically CALL_USER uses the prompt.
+      // If the user types a NEW instruction while CALL_USER, it should probably be treated as the input for CALL_USER.
+
+      if (running) {
+        // Queue the message
+        await api.addPendingMessage({ message: instructions });
+        setLocalInstructions('');
+        return;
+      }
+    }
+
     if (checkBeforeRun) {
       const checked = await checkBeforeRun();
 
@@ -103,8 +127,6 @@ const ChatInput = ({
         return;
       }
     }
-
-    const instructions = getInstantInstructions();
 
     console.log('startRun', instructions, restUserData);
 
@@ -142,8 +164,6 @@ const ChatInput = ({
     }
   };
 
-  const isCallUser = useMemo(() => status === StatusEnum.CALL_USER, [status]);
-
   const lastHumanMessage =
     [...(messages || [])]
       .reverse()
@@ -158,6 +178,23 @@ const ChatInput = ({
   };
 
   const renderButton = () => {
+    const hasText = !!getInstantInstructions();
+
+    // If running and has text, allow queueing
+    if (running && hasText) {
+      return (
+        <Button
+          variant="secondary"
+          size="icon"
+          className="h-8 w-8"
+          onClick={startRun}
+          disabled={disabled}
+        >
+          <CircleArrowUp className="h-4 w-4" />
+        </Button>
+      );
+    }
+
     if (running) {
       return (
         <Button
@@ -213,19 +250,26 @@ const ChatInput = ({
   return (
     <div className="px-4 w-full">
       <div className="flex flex-col space-y-4">
+        {pendingMessages.length > 0 && (
+          <div className="px-2 py-1 text-xs text-muted-foreground bg-secondary/50 rounded-md">
+            Queue: {pendingMessages.length} message(s) pending
+          </div>
+        )}
         <div className="relative w-full">
           <Textarea
             ref={textareaRef}
             placeholder={
               isCallUser && savedInstructions
                 ? `${savedInstructions}`
-                : running && lastHumanMessage && messages?.length > 1
-                  ? lastHumanMessage
-                  : 'What can I do for you today?'
+                : running
+                  ? 'Type to queue a message...'
+                  : lastHumanMessage && messages?.length > 1
+                    ? lastHumanMessage
+                    : 'What can I do for you today?'
             }
             className="min-h-[120px] rounded-2xl resize-none px-4 pb-16" // 调整内边距
             value={localInstructions}
-            disabled={running || disabled}
+            disabled={disabled} // running no longer disables input
             onChange={(e) => setLocalInstructions(e.target.value)}
             onKeyDown={handleKeyDown}
           />

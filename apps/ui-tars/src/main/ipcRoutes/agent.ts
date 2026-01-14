@@ -5,6 +5,7 @@
 import { initIpc } from '@ui-tars/electron-ipc/main';
 import { StatusEnum, Conversation, Message } from '@ui-tars/shared/types';
 import { store } from '@main/store/create';
+import { AppState } from '@main/store/types';
 import { runAgent } from '@main/services/runAgent';
 import { showWindow } from '@main/window/index';
 
@@ -54,7 +55,48 @@ export const agentRoute = t.router({
       errorMsg: null,
     });
 
-    await runAgent(store.setState, store.getState);
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      // Intercept setState to prevent UI flash (status END/CALL_USER) if we have pending messages
+      const wrappedSetState = (newState: AppState) => {
+        const { pendingMessages } = store.getState();
+        if (
+          pendingMessages.length > 0 &&
+          (newState.status === StatusEnum.END ||
+            newState.status === StatusEnum.CALL_USER)
+        ) {
+          // Keep it running seamlessly
+          newState.status = StatusEnum.RUNNING;
+          newState.thinking = true;
+        }
+        store.setState(newState);
+      };
+
+      await runAgent(wrappedSetState, store.getState);
+
+      const { pendingMessages, status, messages } = store.getState();
+      const nextMessage = pendingMessages[0];
+
+      // If we have a next message and the agent didn't crash or wasn't stopped manually
+      // Note: If we suppressed END, status is RUNNING.
+      if (
+        nextMessage &&
+        status !== StatusEnum.ERROR &&
+        status !== StatusEnum.USER_STOPPED &&
+        !store.getState().abortController?.signal.aborted
+      ) {
+        // Persist history for the next run
+        store.setState({
+          instructions: nextMessage,
+          pendingMessages: pendingMessages.slice(1),
+          sessionHistoryMessages: messages, // Pass full context to next agent instance
+          status: StatusEnum.RUNNING,
+          thinking: true,
+        });
+      } else {
+        break;
+      }
+    }
 
     store.setState({ thinking: false });
   }),
@@ -74,7 +116,11 @@ export const agentRoute = t.router({
   }),
   stopRun: t.procedure.input<void>().handle(async () => {
     const { abortController } = store.getState();
-    store.setState({ status: StatusEnum.END, thinking: false });
+    store.setState({
+      status: StatusEnum.END,
+      thinking: false,
+      pendingMessages: [],
+    });
 
     showWindow();
 
@@ -91,6 +137,14 @@ export const agentRoute = t.router({
     .input<{ instructions: string }>()
     .handle(async ({ input }) => {
       store.setState({ instructions: input.instructions });
+    }),
+  addPendingMessage: t.procedure
+    .input<{ message: string }>()
+    .handle(async ({ input }) => {
+      const { pendingMessages } = store.getState();
+      store.setState({
+        pendingMessages: [...pendingMessages, input.message],
+      });
     }),
   setMessages: t.procedure
     .input<{ messages: Conversation[] }>()
@@ -109,6 +163,7 @@ export const agentRoute = t.router({
       thinking: false,
       errorMsg: null,
       instructions: '',
+      pendingMessages: [],
     });
   }),
 });
