@@ -86,10 +86,20 @@ export const agentRoute = t.router({
         !store.getState().abortController?.signal.aborted
       ) {
         // Persist history for the next run
+        const historyMessages = messages.map((msg) => {
+          const {
+            screenshotBase64,
+            screenshotBase64WithElementMarker,
+            screenshotContext,
+            ...rest
+          } = msg;
+          return rest;
+        });
+
         store.setState({
           instructions: nextMessage,
           pendingMessages: pendingMessages.slice(1),
-          sessionHistoryMessages: messages, // Pass full context to next agent instance
+          sessionHistoryMessages: historyMessages, // Pass lightweight context to next agent instance
           status: StatusEnum.RUNNING,
           thinking: true,
         });
