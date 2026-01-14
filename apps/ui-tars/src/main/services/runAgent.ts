@@ -30,6 +30,7 @@ import {
   beforeAgentRun,
   afterAgentRun,
   getLocalBrowserSearchEngine,
+  getLocalBrowserTabStrategy,
 } from '../utils/agent';
 import { FREE_MODEL_BASE_URL } from '../remote/shared';
 import { getAuthHeader } from '../remote/auth';
@@ -149,6 +150,7 @@ export const runAgent = async (
         false,
         getState().status === StatusEnum.CALL_USER,
         getLocalBrowserSearchEngine(settings.searchEngineForBrowser),
+        getLocalBrowserTabStrategy(settings.tabCreationStrategy),
       );
       operatorType = 'browser';
       break;
@@ -167,6 +169,7 @@ export const runAgent = async (
   let modelVersion = getModelVersion(settings.vlmProvider);
   let modelConfig: UITarsModelConfig = {
     baseURL: settings.vlmBaseUrl,
+    // secretlint-disable-next-line @secretlint/secretlint-rule-pattern
     apiKey: settings.vlmApiKey,
     model: settings.vlmModelName,
     useResponsesApi: settings.useResponsesApi,
@@ -182,6 +185,7 @@ export const runAgent = async (
     const useResponsesApi = await ProxyClient.getRemoteVLMResponseApiSupport();
     modelConfig = {
       baseURL: FREE_MODEL_BASE_URL,
+      // secretlint-disable-next-line @secretlint/secretlint-rule-pattern
       apiKey: '',
       model: '',
       useResponsesApi,

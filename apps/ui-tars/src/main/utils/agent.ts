@@ -2,6 +2,7 @@ import { UITarsModelVersion } from '@ui-tars/shared/constants';
 import {
   Operator,
   SearchEngineForSettings,
+  TabCreationStrategy,
   VLMProviderV2,
 } from '../store/types';
 import {
@@ -18,7 +19,10 @@ import {
   showWidgetWindow,
 } from '../window/ScreenMarker';
 import { hideMainWindow, showMainWindow } from '../window';
-import { SearchEngine } from '@ui-tars/operator-browser';
+import {
+  SearchEngine,
+  TabCreationStrategy as OperatorTabStrategy,
+} from '@ui-tars/operator-browser';
 
 export const getModelVersion = (
   provider: VLMProviderV2 | undefined,
@@ -58,6 +62,23 @@ export const getLocalBrowserSearchEngine = (
   engine?: SearchEngineForSettings,
 ) => {
   return (engine || SearchEngineForSettings.GOOGLE) as unknown as SearchEngine;
+};
+
+/**
+ * Convert settings TabCreationStrategy to operator TabCreationStrategy
+ */
+export const getLocalBrowserTabStrategy = (
+  strategy?: TabCreationStrategy,
+): OperatorTabStrategy => {
+  switch (strategy) {
+    case TabCreationStrategy.ALWAYS_NEW:
+      return 'always_new';
+    case TabCreationStrategy.SMART:
+      return 'smart';
+    case TabCreationStrategy.ALWAYS_REUSE:
+    default:
+      return 'always_reuse';
+  }
 };
 
 export const beforeAgentRun = async (operator: Operator) => {

@@ -757,6 +757,11 @@ export class DefaultBrowserOperator extends BrowserOperator {
   private static browserType: BrowserType;
   private static logger: Logger | null = null;
   private static tabSessionManager: TabSessionManager | null = null;
+  private static currentTabStrategy:
+    | 'always_reuse'
+    | 'smart'
+    | 'always_new'
+    | null = null;
   private static smartBrowserManager: SmartBrowserManager | null = null;
   private static lastConnectionMode: 'attached' | 'launched' | 'reused' | null =
     null;
@@ -817,6 +822,10 @@ export class DefaultBrowserOperator extends BrowserOperator {
     showWaterFlow = false,
     isCallUser = false,
     searchEngine = 'google' as SearchEngine,
+    tabCreationStrategy:
+      | 'always_reuse'
+      | 'smart'
+      | 'always_new' = 'always_reuse',
   ): Promise<DefaultBrowserOperator> {
     if (!this.logger) {
       this.logger = new ConsoleLogger('[DefaultBrowserOperator]');
@@ -883,11 +892,22 @@ export class DefaultBrowserOperator extends BrowserOperator {
     }
 
     // Always create TabSessionManager for intelligent tab reuse
-    if (!this.tabSessionManager) {
+    // Recreate if strategy changed
+    if (
+      !this.tabSessionManager ||
+      this.currentTabStrategy !== tabCreationStrategy
+    ) {
+      if (this.tabSessionManager) {
+        await this.tabSessionManager.cleanup();
+      }
       this.tabSessionManager = new TabSessionManager(this.browser!, {
         logger: this.logger ?? undefined,
-        strategy: 'smart',
+        strategy: tabCreationStrategy,
       });
+      this.currentTabStrategy = tabCreationStrategy;
+      this.logger?.info(
+        `TabSessionManager created with strategy: ${tabCreationStrategy}`,
+      );
     }
 
     // Always connect TabSessionManager to the operator instance

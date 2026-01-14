@@ -56,6 +56,18 @@ export enum SearchEngineForSettings {
   BING = 'bing',
 }
 
+/**
+ * Tab creation strategy for browser automation
+ * - always_reuse: Always reuse the same tab, never open new tabs
+ * - smart: Intelligently decide based on URL patterns and workspace domains
+ * - always_new: Always open a new tab for each navigation
+ */
+export enum TabCreationStrategy {
+  ALWAYS_REUSE = 'always_reuse',
+  SMART = 'smart',
+  ALWAYS_NEW = 'always_new',
+}
+
 export enum Operator {
   RemoteComputer = 'Remote Computer Operator',
   RemoteBrowser = 'Remote Browser Operator',
