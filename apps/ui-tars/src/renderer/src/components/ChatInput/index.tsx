@@ -46,22 +46,25 @@ const ChatInput = ({
   disabled: boolean;
   checkBeforeRun?: () => Promise<boolean>;
 }) => {
-  const {
-    status,
-    instructions: savedInstructions,
-    messages,
-    restUserData,
-    pendingMessages = [],
-    thinking,
-  } = useStore();
+  // Use selective state subscription to minimize re-renders
+  const status = useStore((state) => state.status);
+  const savedInstructions = useStore((state) => state.instructions);
+  const messages = useStore((state) => state.messages);
+  const restUserData = useStore((state) => state.restUserData);
+  const pendingMessages = useStore((state) => state.pendingMessages) ?? [];
+  const thinking = useStore((state) => state.thinking);
+
   const [localInstructions, setLocalInstructions] = useState('');
   const { run, stopAgentRuning } = useRunAgent();
   const { getSession, updateSession, chatMessages } = useSession();
   const { settings, updateSetting } = useSetting();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  // StatusEnum.CALL_USER is also a running state in UI perspective until user input
-  // Also check `thinking` to catch the state before status is synced
-  const running = status === StatusEnum.RUNNING || thinking;
+
+  // Memoize running state to prevent unnecessary re-renders
+  const running = useMemo(
+    () => status === StatusEnum.RUNNING || thinking,
+    [status, thinking],
+  );
   const isCallUser = useMemo(() => status === StatusEnum.CALL_USER, [status]);
 
   useEffect(() => {
@@ -107,7 +110,6 @@ const ChatInput = ({
   };
 
   // console.log('running', 'status', status, running);
-
   const startRun = async () => {
     const instructions = getInstantInstructions();
     if (!instructions) {
@@ -197,15 +199,24 @@ const ChatInput = ({
     // If running and has text, allow queueing
     if (running && hasText) {
       return (
-        <Button
-          variant="secondary"
-          size="icon"
-          className="h-8 w-8"
-          onClick={startRun}
-          disabled={disabled}
-        >
-          <CircleArrowUp className="h-4 w-4" />
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="secondary"
+                size="icon"
+                className="h-8 w-8"
+                onClick={startRun}
+                disabled={false}
+              >
+                <CircleArrowUp className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Add to queue</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       );
     }
 
@@ -281,9 +292,9 @@ const ChatInput = ({
                     ? lastHumanMessage
                     : 'What can I do for you today?'
             }
-            className="min-h-[120px] rounded-2xl resize-none px-4 pb-16" // 调整内边距
+            className="min-h-[120px] max-h-[200px] overflow-y-auto rounded-2xl resize-none px-4 pb-16"
             value={localInstructions}
-            disabled={disabled} // running no longer disables input
+            disabled={false} // Always allow typing for message queue
             onChange={(e) => setLocalInstructions(e.target.value)}
             onKeyDown={handleKeyDown}
           />
